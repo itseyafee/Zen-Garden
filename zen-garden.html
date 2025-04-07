@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zen Garden</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #f0f1e8;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    
+    .header {
+      background: #4a593d;
+      color: white;
+      padding: 15px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+    
+    .controls {
+      display: flex;
+      padding: 10px;
+      background: #6a805a;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    
+    .control-btn {
+      padding: 8px 12px;
+      margin: 0 5px;
+      background: #f0f1e8;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+    
+    .control-btn:hover {
+      background: #d1d5c2;
+    }
+    
+    .control-btn.active {
+      background: #8ea676;
+      color: white;
+    }
+    
+    .garden {
+      flex-grow: 1;
+      position: relative;
+      cursor: crosshair;
+    }
+    
+    .sand {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background-color: #e5dcc5;
+      background-image: 
+        linear-gradient(rgba(234, 228, 209, 0.7) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(234, 228, 209, 0.7) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    
+    .stone {
+      position: absolute;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #7c7c7c, #484848);
+      transform: translate(-50%, -50%);
+      box-shadow: 2px 2px 3px rgba(0,0,0,0.2);
+    }
+    
+    .plant {
+      position: absolute;
+      transform-origin: bottom center;
+      transform: translate(-50%, -100%);
+    }
+    
+    .rake-path {
+      position: absolute;
+      border-radius: 4px;
+      transform-origin: center;
+      background: #d9d0b6;
+      box-shadow: inset 1px 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .water {
+      position: absolute;
+      border-radius: 40%;
+      background: rgba(137, 196, 244, 0.7);
+      transform: translate(-50%, -50%);
+      box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
+    }
+    
+    .tooltip {
+      position: absolute;
+      padding: 5px 10px;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      border-radius: 4px;
+      font-size: 12px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 100;
+    }
+    
+    .footer {
+      padding: 10px;
+      text-align: center;
+      background: #4a593d;
+      color: white;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Zen Garden</h1>
+    </div>
+    <div class="controls">
+      <button class="control-btn active" id="rake-btn">Rake</button>
+      <button class="control-btn" id="stone-btn">Stone</button>
+      <button class="control-btn" id="plant-btn">Plant</button>
+      <button class="control-btn" id="water-btn">Water</button>
+      <button class="control-btn" id="clear-btn">Clear</button>
+    </div>
+    <div class="garden">
+      <div class="sand"></div>
+      <div class="tooltip">Tooltip</div>
+    </div>
+    <div class="footer">
+      Find your inner peace
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const garden = document.querySelector('.garden');
+      const tooltip = document.querySelector('.tooltip');
+      
+      // Tools
+      const rakeBtn = document.getElementById('rake-btn');
+      const stoneBtn = document.getElementById('stone-btn');
+      const plantBtn = document.getElementById('plant-btn');
+      const waterBtn = document.getElementById('water-btn');
+      const clearBtn = document.getElementById('clear-btn');
+      
+      let currentTool = 'rake';
+      let isDrawing = false;
+      let startX, startY;
+      
+      // Tool Selection
+      const tools = [rakeBtn, stoneBtn, plantBtn, waterBtn];
+      
+      tools.forEach(tool => {
+        tool.addEventListener('click', () => {
+          tools.forEach(t => t.classList.remove('active'));
+          tool.classList.add('active');
+          
+          switch(tool.id) {
+            case 'rake-btn':
+              currentTool = 'rake';
+              break;
+            case 'stone-btn':
+              currentTool = 'stone';
+              break;
+            case 'plant-btn':
+              currentTool = 'plant';
+              break;
+            case 'water-btn':
+              currentTool = 'water';
+              break;
+          }
+        });
+      });
+      
+      clearBtn.addEventListener('click', () => {
+        const elements = garden.querySelectorAll('.rake-path, .stone, .plant, .water');
+        elements.forEach(el => el.remove());
+      });
+      
+      // Handle mouse events
+      garden.addEventListener('mousedown', (e) => {
+        isDrawing = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        
+        if (currentTool === 'stone') {
+          createStone(e.clientX, e.clientY);
+        } else if (currentTool === 'plant') {
+          createPlant(e.clientX, e.clientY);
+        } else if (currentTool === 'water') {
+          createWater(e.clientX, e.clientY);
+        }
+      });
+      
+      garden.addEventListener('mousemove', (e) => {
+        // Update tooltip
+        tooltip.style.left = `${e.clientX + 10}px`;
+        tooltip.style.top = `${e.clientY + 10}px`;
+        tooltip.textContent = currentTool.charAt(0).toUpperCase() + currentTool.slice(1);
+        tooltip.style.opacity = '1';
+        
+        if (isDrawing && currentTool === 'rake') {
+          createRakePath(startX, startY, e.clientX, e.clientY);
+          startX = e.clientX;
+          startY = e.clientY;
+        }
+      });
+      
+      garden.addEventListener('mouseup', () => {
+        isDrawing = false;
+      });
+      
+      garden.addEventListener('mouseleave', () => {
+        isDrawing = false;
+        tooltip.style.opacity = '0';
+      });
+      
+      // Touch events for mobile
+      garden.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        isDrawing = true;
+        const touch = e.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        
+        if (currentTool === 'stone') {
+          createStone(touch.clientX, touch.clientY);
+        } else if (currentTool === 'plant') {
+          createPlant(touch.clientX, touch.clientY);
+        } else if (currentTool === 'water') {
+          createWater(touch.clientX, touch.clientY);
+        }
+      });
+      
+      garden.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        
+        if (isDrawing && currentTool === 'rake') {
+          createRakePath(startX, startY, touch.clientX, touch.clientY);
+          startX = touch.clientX;
+          startY = touch.clientY;
+        }
+      });
+      
+      garden.addEventListener('touchend', () => {
+        isDrawing = false;
+      });
+      
+      // Create elements
+      function createStone(x, y) {
+        const stone = document.createElement('div');
+        stone.className = 'stone';
+        stone.style.left = `${x}px`;
+        stone.style.top = `${y}px`;
+        
+        const size = 15 + Math.random() * 30;
+        stone.style.width = `${size}px`;
+        stone.style.height = `${size}px`;
+        
+        garden.appendChild(stone);
+      }
+      
+      function createPlant(x, y) {
+        const plant = document.createElement('div');
+        plant.className = 'plant';
+        plant.style.left = `${x}px`;
+        plant.style.top = `${y}px`;
+        
+        // Create SVG plant
+        const plantHeight = 30 + Math.random() * 30;
+        plant.innerHTML = `
+          <svg width="30" height="${plantHeight}" viewBox="0 0 30 ${plantHeight}">
+            <path d="M15,${plantHeight} C15,${plantHeight} 15,10 15,10 C15,10 7,${plantHeight/3} 3,${plantHeight/2}" 
+                  stroke="#517a59" fill="transparent" stroke-width="2" />
+            <path d="M15,${plantHeight} C15,${plantHeight} 15,10 15,10 C15,10 23,${plantHeight/3} 27,${plantHeight/2}" 
+                  stroke="#517a59" fill="transparent" stroke-width="2" />
+            <path d="M15,${plantHeight} C15,${plantHeight} 15,0 15,0" 
+                  stroke="#517a59" fill="transparent" stroke-width="2" />
+          </svg>
+        `;
+        
+        garden.appendChild(plant);
+      }
+      
+      function createRakePath(x1, y1, x2, y2) {
+        const rakePath = document.createElement('div');
+        rakePath.className = 'rake-path';
+        
+        const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+        
+        rakePath.style.width = `${length}px`;
+        rakePath.style.height = '6px';
+        rakePath.style.left = `${x1}px`;
+        rakePath.style.top = `${y1}px`;
+        rakePath.style.transform = `translate(0, -50%) rotate(${angle}deg)`;
+        
+        garden.appendChild(rakePath);
+      }
+      
+      function createWater(x, y) {
+        const water = document.createElement('div');
+        water.className = 'water';
+        water.style.left = `${x}px`;
+        water.style.top = `${y}px`;
+        
+        const size = 30 + Math.random() * 40;
+        water.style.width = `${size}px`;
+        water.style.height = `${size * 0.7}px`;
+        
+        garden.appendChild(water);
+        
+        // Water ripple animation
+        water.style.animation = 'ripple 2s';
+        water.style.opacity = '0.7';
+        
+        // Add keyframe animation
+        const style = document.createElement('style');
+        style.textContent = `
+          @keyframes ripple {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0.9; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0.7; }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    });
+  </script>
+</body>
+</html>
